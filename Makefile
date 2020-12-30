@@ -1,188 +1,271 @@
-SHELL := /usr/bin/env bash
-AGDA := $(shell find . -type f -and \( -path '*/src/*' -or -path '*/courses/*' \) -and -name '*.lagda.md')
-AGDAI := $(shell find . -type f -and \( -path '*/src/*' -or -path '*/courses/*' \) -and -name '*.agdai')
-MARKDOWN := $(subst courses/,out/,$(subst src/,out/,$(subst .lagda.md,.md,$(AGDA))))
-PLFA_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+#################################################################################
+# Configuration
+#################################################################################
 
-ifeq ($(AGDA_STDLIB_VERSION),)
-AGDA_STDLIB_URL := https://agda.github.io/agda-stdlib/
+SITE_DIR := _site
+CACHE_DIR := _cache
+TMP_DIR := $(CACHE_DIR)/tmp
+
+
+#################################################################################
+# Setup Git Hooks
+#################################################################################
+
+.PHONY: init
+init: setup-check-fix-whitespace setup-check-htmlproofer
+	git config core.hooksPath .githooks
+
+
+#################################################################################
+# Build PLFA site
+#################################################################################
+
+.PHONY: build
+build: \
+		standard-library/ChangeLog.md
+	stack build && stack exec site build
+
+standard-library/ChangeLog.md:
+	git submodule init
+	git submodule update --recursive
+
+#################################################################################
+# Test generated site with HTMLProofer
+#################################################################################
+
+.PHONY: test
+test: setup-install-htmlproofer build
+	cd $(SITE_DIR) && htmlproofer \
+		--check-html                \
+		--disable-external          \
+		--report-invalid-tags       \
+		--report-missing-names      \
+		--report-script-embeds      \
+		--report-missing-doctype    \
+		--report-eof-tags           \
+		--report-mismatched-tags    \
+		--check-img-http            \
+		--check-opengraph           \
+		.
+
+#################################################################################
+# Test generated EPUB with EPUBCheck
+#################################################################################
+
+.PHONY: test-epub
+test-epub: setup-check-epubcheck build
+	epubcheck $(SITE_DIR)/plfa.epub
+
+
+#################################################################################
+# Automatically rebuild the site on changes, and start a preview server
+#################################################################################
+
+.PHONY: watch
+watch: \
+		standard-library/ChangeLog.md
+	stack build && stack exec site watch
+
+
+#################################################################################
+# Update contributor metadata in `contributors/`
+#################################################################################
+
+.PHONY: update-contributors
+update-contributors:
+	stack build && stack exec update-contributors
+
+
+#################################################################################
+# Clean up and remove the cache
+#################################################################################
+
+.PHONY: clean
+clean: \
+		standard-library/ChangeLog.md
+	stack build && stack exec site clean
+
+
+#################################################################################
+# List targets in Makefile
+#################################################################################
+
+.PHONY: list
+list:
+	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$'
+
+
+
+########################################
+# Publish PLFA to plfa.github.io
+########################################
+
+.PHONY: publish
+publish: setup-check-rsync
+	@echo "Building site..."
+	make build
+	@echo "Testing site..."
+	make test
+	@echo "Creating web branch..."
+	git fetch --all
+	git checkout -b web --track origin/web
+	rsync -a                   \
+		--filter='P _site/'      \
+		--filter='P _cache/'     \
+		--filter='P .git/'       \
+		--filter='P .gitignore'  \
+		--filter='P .stack-work' \
+		--filter='P .nojekyll'   \
+		--filter='P CNAME'       \
+		--delete-excluded        \
+		_site/ .
+	git add -A
+	@echo "Publishing web branch..."
+	git commit -m "Publish."
+	git push origin web:web
+	@echo "Deleting web branch..."
+	git checkout dev
+	git branch -D web
+
+
+########################################
+# Publish PLFA to plfa.inf.ed.ac.uk
+########################################
+
+PLFA_AFS_DIR := /afs/inf.ed.ac.uk/group/project/plfa
+
+.PHONY: publish-uoe
+publish-uoe:
+ifeq (,$(wildcard $(PLFA_AFS_DIR)))
+	@echo "Please connect the Informatics OpenAFS filesystem."
+	@echo "See: http://computing.help.inf.ed.ac.uk/informatics-filesystem"
+	@exit 1
 else
-AGDA_STDLIB_URL := https://agda.github.io/agda-stdlib/v$(AGDA_STDLIB_VERSION)/
+ifeq (,$(wildcard $(PLFA_AFS_DIR)/html))
+	git clone https://github.com/plfa/plfa.github.io.git --branch web --single-branch --depth 1 html
+endif
+	cd $(PLFA_AFS_DIR)/html          \
+		&& git fetch --depth 1         \
+		&& git reset --hard origin/web \
+		&& git clean -dfx
+	fsr setacl $(PLFA_AFS_DIR)/html system:groupwebserver rl
 endif
 
 
-# Build PLFA and test hyperlinks
-test: build
-	ruby -S bundle exec htmlproofer '_site'
+#################################################################################
+# Setup dependencies
+#################################################################################
 
-
-# Build PLFA and test hyperlinks offline
-test-offline: build
-	ruby -S bundle exec htmlproofer '_site' --disable-external
-
-
-# Build PLFA and test hyperlinks for stable
-test-stable-offline: $(MARKDOWN)
-	ruby -S bundle exec jekyll clean
-	ruby -S bundle exec jekyll build --destination '_site/stable' --baseurl '/stable'
-	ruby -S bundle exec htmlproofer '_site' --disable-external
-
-
-statistics:
-	hs/agda-count
-
-
-out/:
-	mkdir -p out/
-
-
-# Convert literal Agda to Markdown
-define AGDA_template
-in := $(1)
-out := $(subst courses/,out/,$(subst src/,out/,$(subst .lagda.md,.md,$(1))))
-$$(out) : in  = $(1)
-$$(out) : out = $(subst courses/,out/,$(subst src/,out/,$(subst .lagda.md,.md,$(1))))
-$$(out) : $$(in) | out/
-	@echo "Processing $$(subst ./,,$$(in))"
-ifeq (,$$(findstring courses/,$$(in)))
-	./highlight.sh $$(subst ./,,$$(in)) --include-path=src/
-else
-# Fix links to the file itself (out/<filename> to out/<filepath>)
-	./highlight.sh $$(subst ./,,$$(in)) --include-path=src/ --include-path=$$(subst ./,,$$(dir $$(in)))
+.PHONY: setup-check-stack
+setup-check-stack:
+ifeq (,$(wildcard $(shell which stack)))
+	@echo "The command you called requires the Haskell Tool Stack"
+	@echo "See: https://docs.haskellstack.org/en/stable/install_and_upgrade/"
+	@exit 1
 endif
+
+.PHONY: setup-check-npm
+setup-check-npm:
+ifeq (,$(wildcard $(shell which npm)))
+	@echo "The command you called requires the Node Package Manager"
+	@echo "See: https://www.npmjs.com/get-npm"
+	@exit 1
+endif
+
+.PHONY: setup-check-gem
+setup-check-gem:
+ifeq (,$(wildcard $(shell which gem)))
+	@echo "The command you called requires the RubyGems Package Manager"
+	@echo "See: https://www.ruby-lang.org/en/documentation/installation/"
+	@exit 1
+endif
+
+.PHONY: setup-check-fix-whitespace
+setup-check-fix-whitespace: setup-check-stack
+ifeq (,$(wildcard $(shell which fix-whitespace)))
+	@echo "The command you called requires fix-whitespace"
+	@echo "Run: git clone https://github.com/agda/fix-whitespace"
+	@echo "     cd fix-whitespace/"
+	@echo "     stack install --stack-yaml stack-8.8.3.yaml"
+endif
+
+.PHONY: setup-check-epubcheck
+setup-check-epubcheck:
+ifeq (,$(wildcard $(shell which epubcheck)))
+	@echo "The command you called requires EPUBCheck"
+	@echo "See: https://github.com/w3c/epubcheck"
+endif
+
+.PHONY: setup-check-rsync
+setup-check-rsync:
+ifeq (,$(wildcard $(shell which rsync)))
+	@echo "The command you called requires rsync"
+	@echo "See: https://rsync.samba.org/"
+	@exit 1
+endif
+
+.PHONY: setup-install-htmlproofer
+setup-install-htmlproofer: setup-check-gem
+ifeq (,$(wildcard $(shell which htmlproofer)))
+	@echo "Installing HTMLProofer..."
+	gem install html-proofer
+endif
+
+.PHONY: setup-install-bundler
+setup-install-bundler: setup-check-gem
+ifeq (,$(wildcard $(shell which bundle)))
+	@echo "Installing Ruby Bundler..."
+	gem install bundle
+endif
+
+
+#################################################################################
+# Build legacy versions of website using Jekyll
+#################################################################################
+
+LEGACY_VERSIONS := 19.08 20.07
+LEGACY_VERSION_DIRS := $(addprefix versions/,$(addsuffix /,$(LEGACY_VERSIONS)))
+
+legacy-versions: setup-install-bundle $(LEGACY_VERSION_DIRS)
+
+ifeq ($(shell sed --version >/dev/null 2>&1; echo $$?),1)
+SEDI := sed -i ""
+else
+SEDI := sed -i
+endif
+
+define build_legacy_version
+version := $(1)
+out := $(addsuffix /,$(1))
+url := $(addprefix https://github.com/plfa/plfa.github.io/archive/web-,$(addsuffix .zip,$(1)))
+tmp_zip := $(addprefix versions/plfa.github.io-web-,$(addsuffix .zip,$(1)))
+tmp_dir := $(addprefix versions/plfa.github.io-web-,$(addsuffix /,$(1)))
+baseurl := $(addprefix /,$(1))
+
+$$(tmp_zip): tmp_zip = $(addprefix versions/plfa.github.io-web-,$(addsuffix .zip,$(1)))
+$$(tmp_zip): url = $(addprefix https://github.com/plfa/plfa.github.io/archive/web-,$(addsuffix .zip,$(1)))
+$$(tmp_zip):
+	@mkdir -p versions/
+	@wget -c $$(url) -O $$(tmp_zip)
+
+$$(tmp_dir): version = $(1)
+$$(tmp_dir): tmp_dir = $(addprefix versions/plfa.github.io-web-,$(addsuffix /,$(1)))
+$$(tmp_dir): tmp_zip = $(addprefix versions/plfa.github.io-web-,$(addsuffix .zip,$(1)))
+$$(tmp_dir): $$(tmp_zip)
+	@yes | unzip -qq $$(tmp_zip) -d versions/
+	@$(SEDI) "s/branch: dev/branch: dev-$$(version)/" $$(addsuffix _config.yml,$$(tmp_dir))
+
+versions/$$(out): out = $(addsuffix /,$(1))
+versions/$$(out): url = $(addprefix https://github.com/plfa/plfa.github.io/archive/web-,$(addsuffix .zip,$(1)))
+versions/$$(out): tmp_dir = $(addprefix versions/plfa.github.io-web-,$(addsuffix /,$(1)))
+versions/$$(out): baseurl = $(addprefix /,$(1))
+versions/$$(out): $$(tmp_dir)
+	@echo "source \"https://rubygems.org\"\n\ngroup :jekyll_plugins do\n  gem 'github-pages'\nend" > $$(tmp_dir)/Gemfile
+	@cd $$(tmp_dir) \
+		&& rm -rf _posts \
+		&& bundle install \
+		&& bundle exec jekyll clean \
+		&& bundle exec jekyll build --destination '../$$(out)' --baseurl '$$(baseurl)'
 endef
 
-$(foreach agda,$(AGDA),$(eval $(call AGDA_template,$(agda))))
-
-
-# Start server
-serve:
-	ruby -S bundle exec jekyll serve --incremental
-
-
-# Start background server
-server-start:
-	ruby -S bundle exec jekyll serve --no-watch --detach
-
-
-# Stop background server
-server-stop:
-	pkill -f jekyll
-
-
-# Build website using jekyll
-build: $(MARKDOWN)
-	ruby -S bundle exec jekyll build
-
-
-# Build website using jekyll incrementally
-build-incremental: $(MARKDOWN)
-	ruby -S bundle exec jekyll build --incremental
-
-
-# Remove all auxiliary files
-clean:
-	rm -f .agda-stdlib.sed .links-*.sed
-ifneq ($(strip $(AGDAI)),)
-	rm $(AGDAI)
-endif
-
-
-# Remove all generated files
-clobber: clean
-	ruby -S bundle exec jekyll clean
-	rm -rf out/
-
-.phony: clobber
-
-
-# List all .lagda files
-ls:
-	@echo $(AGDA)
-
-.phony: ls
-
-
-# MacOS Setup (install Bundler)
-macos-setup:
-	brew install libxml2
-	ruby -S gem install bundler --no-ri --no-rdoc
-	ruby -S gem install pkg-config --no-ri --no-rdoc -v "~> 1.1"
-	ruby -S bundle config build.nokogiri --use-system-libraries
-	ruby -S bundle install
-
-.phony: macos-setup
-
-
-# Travis Setup (install Agda, the Agda standard library, acknowledgements, etc.)
-travis-setup:\
-	$(HOME)/.local/bin/agda\
-	$(HOME)/.local/bin/acknowledgements\
-	$(HOME)/agda-stdlib-$(AGDA_STDLIB_VERSION)/src\
-	$(HOME)/.agda/defaults\
-	$(HOME)/.agda/libraries
-
-.phony: travis-setup
-
-
-travis-install-acknowledgements: $(HOME)/.local/bin/acknowledgements
-
-$(HOME)/.local/bin/acknowledgements:
-	curl -L https://github.com/plfa/acknowledgements/archive/master.zip -o $(HOME)/acknowledgements-master.zip
-	unzip -qq $(HOME)/acknowledgements-master.zip -d $(HOME)
-	cd $(HOME)/acknowledgements-master;\
-		stack install
-
-travis-uninstall-acknowledgements:
-	rm -rf $(HOME)/acknowledgements-master/
-	rm $(HOME)/.local/bin/acknowledgements
-
-travis-reinstall-acknowledgements: travis-uninstall-acknowledgements travis-reinstall-acknowledgements
-
-.phony: travis-install-acknowledgements travis-uninstall-acknowledgements travis-reinstall-acknowledgements
-
-
-travis-install-agda:\
-	$(HOME)/.local/bin/agda\
-	$(HOME)/.agda/defaults\
-	$(HOME)/.agda/libraries
-
-$(HOME)/.agda/defaults:
-	echo "standard-library" >> $(HOME)/.agda/defaults
-	echo "plfa" >> $(HOME)/.agda/defaults
-
-$(HOME)/.agda/libraries:
-	echo "$(HOME)/agda-stdlib-$(AGDA_STDLIB_VERSION)/standard-library.agda-lib" >> $(HOME)/.agda/libraries
-	echo "$(PLFA_DIR)/plfa.agda-lib" >> $(HOME)/.agda/libraries
-
-$(HOME)/.local/bin/agda:
-	curl -L https://github.com/agda/agda/archive/v$(AGDA_VERSION).zip -o $(HOME)/agda-$(AGDA_VERSION).zip
-	unzip -qq $(HOME)/agda-$(AGDA_VERSION).zip -d $(HOME)
-	cd $(HOME)/agda-$(AGDA_VERSION);\
-		stack install --stack-yaml=stack-8.0.2.yaml
-
-travis-uninstall-agda:
-	rm -rf $(HOME)/agda-$(AGDA_VERSION)/
-	rm -f $(HOME)/.local/bin/agda
-	rm -f $(HOME)/.local/bin/agda-mode
-
-travis-reinstall-agda: travis-uninstall-agda travis-install-agda
-
-.phony: travis-install-agda travis-uninstall-agda travis-reinstall-agda
-
-
-travis-install-agda-stdlib: $(HOME)/agda-stdlib-$(AGDA_STDLIB_VERSION)/src
-
-$(HOME)/agda-stdlib-$(AGDA_STDLIB_VERSION)/src:
-	curl -L https://github.com/agda/agda-stdlib/archive/v$(AGDA_STDLIB_VERSION).zip -o $(HOME)/agda-stdlib-$(AGDA_STDLIB_VERSION).zip
-	unzip -qq $(HOME)/agda-stdlib-$(AGDA_STDLIB_VERSION).zip -d $(HOME)
-	mkdir -p $(HOME)/.agda
-
-travis-uninstall-agda-stdlib:
-	rm $(HOME)/.agda/defaults
-	rm $(HOME)/.agda/libraries
-	rm -rf $(HOME)/agda-stdlib-$(AGDA_STDLIB_VERSION)/
-
-travis-reinstall-agda-stdlib: travis-uninstall-agda-stdlib travis-install-agda-stdlib
-
-.phony: travis-install-agda-stdlib travis-uninstall-agda-stdlib travis-reinstall-agda-stdlib
+$(foreach legacy_version,$(LEGACY_VERSIONS),$(eval $(call build_legacy_version,$(legacy_version))))

@@ -177,7 +177,7 @@ and follows by straightforward computation combined with the
 inductive hypothesis.  As usual, the inductive hypothesis is indicated by a recursive
 invocation of the proof, in this case `++-assoc xs ys zs`.
 
-Recall that Agda supports [sections]({{ site.baseurl }}/Induction/#sections).
+Recall that Agda supports [sections](/Induction/#sections).
 Applying `cong (x ∷_)` promotes the inductive hypothesis:
 
     (xs ++ ys) ++ zs ≡ xs ++ (ys ++ zs)
@@ -458,7 +458,7 @@ _ =
 ```
 Now the time to reverse a list is linear in the length of the list.
 
-## Map {#Map}
+## Map {name=Map}
 
 Map applies a function to every element of a list to generate a corresponding list.
 Map is an example of a _higher-order function_, one which takes a function as an
@@ -558,7 +558,7 @@ Define a suitable map operator over trees:
 -- Your code goes here
 ```
 
-## Fold {#Fold}
+## Fold {name=Fold}
 
 Fold takes an operator and a value, and uses the operator to combine
 each of the elements of the list, taking the given value as the result
@@ -833,7 +833,7 @@ Show that if `_⊗_` and `e` form a monoid, then `foldr _⊗_ e` and
 ```
 
 
-## All {#All}
+## All {name=All}
 
 We can also define predicates over lists. Two of the most important
 are `All` and `Any`.
@@ -966,7 +966,7 @@ Show that `Any` and `All` satisfy a version of De Morgan's Law:
 
 (Can you see why it is important that here `_∘_` is generalised
 to arbitrary levels, as described in the section on
-[universe polymorphism]({{ site.baseurl }}/Equality/#unipoly)?)
+[universe polymorphism](/Equality/#unipoly)?)
 
 Do we also have the following?
 
@@ -1106,8 +1106,8 @@ with their corresponding proofs.
 Definitions similar to those in this chapter can be found in the standard library:
 ```
 import Data.List using (List; _++_; length; reverse; map; foldr; downFrom)
-import Data.List.All using (All; []; _∷_)
-import Data.List.Any using (Any; here; there)
+import Data.List.Relation.Unary.All using (All; []; _∷_)
+import Data.List.Relation.Unary.Any using (Any; here; there)
 import Data.List.Membership.Propositional using (_∈_)
 import Data.List.Properties
   using (reverse-++-commute; map-compose; map-++-commute; foldr-++)

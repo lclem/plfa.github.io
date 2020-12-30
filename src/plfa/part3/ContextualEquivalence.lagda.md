@@ -1,5 +1,5 @@
 ---
-title     : "ContextualEquivalence: Denotational equality implies contextual equivalence 🚧"
+title     : "ContextualEquivalence: Denotational equality implies contextual equivalence"
 layout    : page
 prev      : /Adequacy/
 permalink : /ContextualEquivalence/
@@ -20,7 +20,7 @@ open import plfa.part2.BigStep using (_⊢_⇓_; cbn→reduce)
 open import plfa.part3.Denotational using (ℰ; _≃_; ≃-sym; ≃-trans; _iff_)
 open import plfa.part3.Compositional using (Ctx; plug; compositionality)
 open import plfa.part3.Soundness using (soundness)
-open import plfa.part3.Adequacy using (adequacy)
+open import plfa.part3.Adequacy using (↓→⇓)
 ```
 
 ## Contextual Equivalence
@@ -78,7 +78,7 @@ denot-equal-terminates {Γ}{M}{N}{C} ℰM≃ℰN ⟨ N′ , CM—↠ƛN′ ⟩ =
   let ℰCM≃ℰƛN′ = soundness CM—↠ƛN′ in
   let ℰCM≃ℰCN = compositionality{Γ = Γ}{Δ = ∅}{C = C} ℰM≃ℰN in
   let ℰCN≃ℰƛN′ = ≃-trans (≃-sym ℰCM≃ℰCN) ℰCM≃ℰƛN′ in
-    cbn→reduce (proj₂ (proj₂ (proj₂ (adequacy ℰCN≃ℰƛN′))))
+    cbn→reduce (proj₂ (proj₂ (proj₂ (↓→⇓ ℰCN≃ℰƛN′))))
 ```
 
 The proof is direct. Because `plug C —↠ plug C (ƛN′)`,
@@ -94,7 +94,7 @@ Putting these two facts together gives us
 
     ℰ (plug C N) ≃ ℰ (ƛN′).
 
-We then apply adequacy to deduce
+We then apply `↓→⇓` from Chapter [Adequacy](/Adequacy/) to deduce
 
     ∅' ⊢ plug C N ⇓ clos (ƛ N′′) δ).
 

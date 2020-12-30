@@ -42,7 +42,7 @@ yourself, or your group in the case of group practicals).
 ```
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; cong; sym)
-open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
+open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; step-≡; _∎)
 open import Data.Bool.Base using (Bool; true; false; T; _∧_; _∨_; not)
 open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _∸_; _≤_; s≤s; z≤n)
 open import Data.Nat.Properties using
@@ -238,7 +238,7 @@ Show that `Any` and `All` satisfy a version of De Morgan's Law:
 
 (Can you see why it is important that here `_∘_` is generalised
 to arbitrary levels, as described in the section on
-[universe polymorphism]({{ site.baseurl }}/Equality/#unipoly)?)
+[universe polymorphism](/Equality/#unipoly)?)
 
 Do we also have the following?
 
@@ -538,4 +538,3 @@ Provide proofs of the three postulates, `unstuck`, `preserves`, and `wttdgs` abo
 ```
 -- Your code goes here
 ```
-

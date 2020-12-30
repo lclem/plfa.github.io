@@ -19,7 +19,7 @@ the next step is to define relations, such as _less than or equal_.
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; cong)
 open import Data.Nat using (ℕ; zero; suc; _+_)
-open import Data.Nat.Properties using (+-comm)
+open import Data.Nat.Properties using (+-comm; +-identityʳ)
 ```
 
 
@@ -129,12 +129,24 @@ One may also identify implicit arguments by name:
 _ : 2 ≤ 4
 _ = s≤s {m = 1} {n = 3} (s≤s {m = 0} {n = 2} (z≤n {n = 2}))
 ```
-In the latter format, you may only supply some implicit arguments:
+In the latter format, you can choose to only supply some implicit arguments:
 ```
 _ : 2 ≤ 4
 _ = s≤s {n = 3} (s≤s {n = 2} z≤n)
 ```
 It is not permitted to swap implicit arguments, even when named.
+
+We can ask Agda to use the same inference to try and infer an _explicit_ term,
+by writing `_`. For instance, we can define a variant of the proposition
+`+-identityʳ` with implicit arguments:
+```
++-identityʳ′ : ∀ {m : ℕ} → m + zero ≡ m
++-identityʳ′ = +-identityʳ _
+```
+We use `_` to ask Agda to infer the value of the _explicit_ argument from
+context. There is only one value which gives us the correct proof, `m`, so Agda
+happily fills it in.
+If Agda fails to infer the value, it reports an error.
 
 
 ## Precedence
@@ -155,7 +167,7 @@ either `(1 ≤ 2) ≤ 3` or `1 ≤ (2 ≤ 3)`.
 Given two numbers, it is straightforward to compute whether or not the
 first is less than or equal to the second.  We don't give the code for
 doing so here, but will return to this point in
-Chapter [Decidable]({{ site.baseurl }}/Decidable/).
+Chapter [Decidable](/Decidable/).
 
 
 ## Inversion
@@ -229,7 +241,7 @@ lack---for instance by saying that a newly introduced relation is a
 partial order but not a total order.
 
 
-#### Exercise `orderings` (practice) {#orderings}
+#### Exercise `orderings` (practice) {name=orderings}
 
 Give an example of a preorder that is not a partial order.
 
@@ -280,8 +292,8 @@ hold, then `m ≤ p` holds.  Again, `m`, `n`, and `p` are implicit:
 ≤-trans (s≤s m≤n) (s≤s n≤p)  =  s≤s (≤-trans m≤n n≤p)
 ```
 Here the proof is by induction on the _evidence_ that `m ≤ n`.  In the
-base case, the first inequality holds by `z≤n` and must show `zero ≤
-p`, which follows immediately by `z≤n`.  In this case, the fact that
+base case, the first inequality holds by `z≤n` and must show `zero ≤ p`,
+which follows immediately by `z≤n`.  In this case, the fact that
 `n ≤ p` is irrelevant, and we write `_` as the pattern to indicate
 that the corresponding evidence is unused.
 
@@ -322,8 +334,8 @@ using holes and the `C-c C-c`, `C-c C-,`, and `C-c C-r` commands.
 ## Anti-symmetry
 
 The third property to prove about comparison is that it is
-antisymmetric: for all naturals `m` and `n`, if both `m ≤ n` and `n ≤
-m` hold, then `m ≡ n` holds:
+antisymmetric: for all naturals `m` and `n`, if both `m ≤ n` and
+`n ≤ m` hold, then `m ≡ n` holds:
 ```
 ≤-antisym : ∀ {m n : ℕ}
   → m ≤ n
@@ -347,7 +359,7 @@ and `suc n ≤ suc m` and must show `suc m ≡ suc n`.  The inductive
 hypothesis `≤-antisym m≤n n≤m` establishes that `m ≡ n`, and our goal
 follows by congruence.
 
-#### Exercise `≤-antisym-cases` (practice) {#leq-antisym-cases}
+#### Exercise `≤-antisym-cases` (practice) {name=leq-antisym-cases}
 
 The above proof omits cases where one argument is `z≤n` and one
 argument is `s≤s`.  Why is it ok to omit them?
@@ -383,7 +395,7 @@ evidence of `m ≤ n` and `n ≤ m` respectively.
 
 (For those familiar with logic, the above definition
 could also be written as a disjunction. Disjunctions will
-be introduced in Chapter [Connectives]({{ site.baseurl }}/Connectives/).)
+be introduced in Chapter [Connectives](/Connectives/).)
 
 This is our first use of a datatype with _parameters_,
 in this case `m` and `n`.  It is equivalent to the following
@@ -547,7 +559,7 @@ Show that multiplication is monotonic with regard to inequality.
 ```
 
 
-## Strict inequality {#strict-inequality}
+## Strict inequality {name=strict-inequality}
 
 We can define strict inequality similarly to inequality:
 ```
@@ -578,14 +590,14 @@ It is also monotonic with regards to addition and multiplication.
 Most of the above are considered in exercises below.  Irreflexivity
 requires negation, as does the fact that the three cases in
 trichotomy are mutually exclusive, so those points are deferred to
-Chapter [Negation]({{ site.baseurl }}/Negation/).
+Chapter [Negation](/Negation/).
 
 It is straightforward to show that `suc m ≤ n` implies `m < n`,
 and conversely.  One can then give an alternative derivation of the
 properties of strict inequality, such as transitivity, by
 exploiting the corresponding properties of inequality.
 
-#### Exercise `<-trans` (recommended) {#less-trans}
+#### Exercise `<-trans` (recommended) {name=less-trans}
 
 Show that strict inequality is transitive.
 
@@ -593,7 +605,7 @@ Show that strict inequality is transitive.
 -- Your code goes here
 ```
 
-#### Exercise `trichotomy` (practice) {#trichotomy}
+#### Exercise `trichotomy` (practice) {name=trichotomy}
 
 Show that strict inequality satisfies a weak version of trichotomy, in
 the sense that for any `m` and `n` that one of the following holds:
@@ -605,13 +617,13 @@ Define `m > n` to be the same as `n < m`.
 You will need a suitable data declaration,
 similar to that used for totality.
 (We will show that the three cases are exclusive after we introduce
-[negation]({{ site.baseurl }}/Negation/).)
+[negation](/Negation/).)
 
 ```
 -- Your code goes here
 ```
 
-#### Exercise `+-mono-<` (practice) {#plus-mono-less}
+#### Exercise `+-mono-<` (practice) {name=plus-mono-less}
 
 Show that addition is monotonic with respect to strict inequality.
 As with inequality, some additional definitions may be required.
@@ -620,7 +632,7 @@ As with inequality, some additional definitions may be required.
 -- Your code goes here
 ```
 
-#### Exercise `≤-iff-<` (recommended) {#leq-iff-less}
+#### Exercise `≤-iff-<` (recommended) {name=leq-iff-less}
 
 Show that `suc m ≤ n` implies `m < n`, and conversely.
 
@@ -628,7 +640,7 @@ Show that `suc m ≤ n` implies `m < n`, and conversely.
 -- Your code goes here
 ```
 
-#### Exercise `<-trans-revisited` (practice) {#less-trans-revisited}
+#### Exercise `<-trans-revisited` (practice) {name=less-trans-revisited}
 
 Give an alternative proof that strict inequality is transitive,
 using the relation between strict inequality and inequality and
@@ -661,7 +673,7 @@ data even where
 
 data odd where
 
-  suc   : ∀ {n : ℕ}
+  suc  : ∀ {n : ℕ}
     → even n
       -----------
     → odd (suc n)
@@ -737,7 +749,7 @@ evidence that the first number is odd. If it is because it is the
 successor of an even number, then the result is odd because it is the
 successor of the sum of two even numbers, which is even.
 
-#### Exercise `o+o≡e` (stretch) {#odd-plus-odd}
+#### Exercise `o+o≡e` (stretch) {name=odd-plus-odd}
 
 Show that the sum of two odd numbers is even.
 
@@ -745,10 +757,10 @@ Show that the sum of two odd numbers is even.
 -- Your code goes here
 ```
 
-#### Exercise `Bin-predicates` (stretch) {#Bin-predicates}
+#### Exercise `Bin-predicates` (stretch) {name=Bin-predicates}
 
 Recall that
-Exercise [Bin]({{ site.baseurl }}/Naturals/#Bin)
+Exercise [Bin](/Naturals/#Bin)
 defines a datatype `Bin` of bitstrings representing natural numbers.
 Representations are not unique due to leading zeros.
 Hence, eleven may be represented by both of the following:
@@ -808,7 +820,7 @@ import Data.Nat.Properties using (≤-refl; ≤-trans; ≤-antisym; ≤-total;
 ```
 In the standard library, `≤-total` is formalised in terms of
 disjunction (which we define in
-Chapter [Connectives]({{ site.baseurl }}/Connectives/)),
+Chapter [Connectives](/Connectives/)),
 and `+-monoʳ-≤`, `+-monoˡ-≤`, `+-mono-≤` are proved differently than here,
 and more arguments are implicit.
 

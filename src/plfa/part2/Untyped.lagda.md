@@ -67,7 +67,7 @@ open import Relation.Nullary.Product using (_×-dec_)
 ## Untyped is Uni-typed
 
 Our development will be close to that in
-Chapter [DeBruijn]({{ site.baseurl }}/DeBruijn/),
+Chapter [DeBruijn](/DeBruijn/),
 save that every term will have exactly the same type, written `★`
 and pronounced "any".
 This matches a slogan introduced by Dana Scott
@@ -467,7 +467,7 @@ _ =
   ∎
 ```
 After just two steps the top-level term is an abstraction,
-and `ζ` rules drive the rest of the normalisation. 
+and `ζ` rules drive the rest of the normalisation.
 
 
 ## Progress
@@ -547,8 +547,10 @@ As previously, progress immediately yields an evaluator.
 
 Gas is specified by a natural number:
 ```
-data Gas : Set where
-  gas : ℕ → Gas
+record Gas : Set where
+  constructor gas
+  field
+    amount : ℕ
 ```
 When our evaluator returns a term `N`, it will either give evidence that
 `N` is normal or indicate that it ran out of gas:
@@ -767,7 +769,7 @@ Confirm that two times two is four.
 #### Exercise `encode-more` (stretch)
 
 Along the lines above, encode all of the constructs of
-Chapter [More]({{ site.baseurl }}/More/),
+Chapter [More](/More/),
 save for primitive numbers, in the untyped lambda calculus.
 
 ```
@@ -810,7 +812,7 @@ L —↠⟨ L—↠M ⟩ M—↠N = —↠-trans L—↠M M—↠N
 
 ## Multi-step reduction is a congruence
 
-Recall from Chapter [Induction]({{ site.baseurl }}/Induction/) that a
+Recall from Chapter [Induction](/Induction/) that a
 relation `R` is a _congruence_ for a given function `f` if it is
 preserved by that function, i.e., if `R x y` then `R (f x) (f y)`.
 The term constructors `ƛ_` and `_·_` are functions, and so

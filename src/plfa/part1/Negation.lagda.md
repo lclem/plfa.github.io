@@ -34,8 +34,8 @@ as implication of false:
 ¬_ : Set → Set
 ¬ A = A → ⊥
 ```
-This is a form of _proof by contradiction_: if assuming `A` leads
-to the conclusion `⊥` (a contradiction), then we must have `¬ A`.
+This is a form of _reductio ad absurdum_: if assuming `A` leads
+to the conclusion `⊥` (an absurdity), then we must have `¬ A`.
 
 Evidence that `¬ A` holds is of the form
 
@@ -189,7 +189,7 @@ again causing the equality to hold trivially.
 #### Exercise `<-irreflexive` (recommended)
 
 Using negation, show that
-[strict inequality]({{ site.baseurl }}/Relations/#strict-inequality)
+[strict inequality](/Relations/#strict-inequality)
 is irreflexive, that is, `n < n` holds for no `n`.
 
 ```
@@ -200,7 +200,7 @@ is irreflexive, that is, `n < n` holds for no `n`.
 #### Exercise `trichotomy` (practice)
 
 Show that strict inequality satisfies
-[trichotomy]({{ site.baseurl }}/Relations/#trichotomy),
+[trichotomy](/Relations/#trichotomy),
 that is, for any naturals `m` and `n` exactly one of the following holds:
 
 * `m < n`

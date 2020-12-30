@@ -25,7 +25,7 @@ recursive function definitions.
 
 This chapter formalises the simply-typed lambda calculus, giving its
 syntax, small-step semantics, and typing rules.  The next chapter
-[Properties]({{ site.baseurl }}/Properties/)
+[Properties](/Properties/)
 proves its main properties, including
 progress and preservation.  Following chapters will look at a number
 of variants of lambda calculus.
@@ -33,7 +33,7 @@ of variants of lambda calculus.
 Be aware that the approach we take here is _not_ our recommended
 approach to formalisation.  Using de Bruijn indices and
 intrinsically-typed terms, as we will do in
-Chapter [DeBruijn]({{ site.baseurl }}/DeBruijn/),
+Chapter [DeBruijn](/DeBruijn/),
 leads to a more compact formulation.  Nonetheless, we begin with named
 variables and extrinsically-typed terms,
 partly because names are easier than indices to read,
@@ -53,12 +53,16 @@ four.
 ## Imports
 
 ```
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl)
-open import Data.String using (String; _≟_)
-open import Data.Nat using (ℕ; zero; suc)
+open import Data.Bool using (T; not)
 open import Data.Empty using (⊥; ⊥-elim)
-open import Relation.Nullary using (Dec; yes; no; ¬_)
 open import Data.List using (List; _∷_; [])
+open import Data.Nat using (ℕ; zero; suc)
+open import Data.Product using (∃-syntax; _×_)
+open import Data.String using (String; _≟_)
+open import Relation.Nullary using (Dec; yes; no; ¬_)
+open import Relation.Nullary.Decidable using (⌊_⌋; False; toWitnessFalse)
+open import Relation.Nullary.Negation using (¬?)
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl)
 ```
 
 ## Syntax of terms
@@ -139,7 +143,7 @@ plus = μ "+" ⇒ ƛ "m" ⇒ ƛ "n" ⇒
 ```
 The recursive definition of addition is similar to our original
 definition of `_+_` for naturals, as given in
-Chapter [Naturals]({{ site.baseurl }}/Naturals/#plus).
+Chapter [Naturals](/Naturals/#plus).
 Here variable "m" is bound twice, once in a lambda abstraction and once in
 the successor branch of the case; the first use of "m" refers to
 the former and the second to the latter.  Any use of "m" in the successor branch
@@ -209,7 +213,7 @@ definition may use `plusᶜ` as defined earlier (or may not
 ```
 
 
-#### Exercise `primed` (stretch) {#primed}
+#### Exercise `primed` (stretch) {name=primed}
 
 Some people find it annoying to write `` ` "x" `` instead of `x`.
 We can make examples with lambda terms slightly easier to write
@@ -388,7 +392,7 @@ to treat variables as values, and to treat
 `ƛ x ⇒ N` as a value only if `N` is a value.
 Indeed, this is how Agda normalises terms.
 We consider this approach in
-Chapter [Untyped]({{ site.baseurl }}/Untyped/).
+Chapter [Untyped](/Untyped/).
 
 
 ## Substitution
@@ -582,7 +586,7 @@ replaces the formal parameter by the actual parameter.
 
 If a term is a value, then no reduction applies; conversely,
 if a reduction applies to a term then it is not a value.
-We will show in the next chapter that 
+We will show in the next chapter that
 this exhausts the possibilities: every well-typed term
 either reduces or is a value.
 
@@ -693,7 +697,7 @@ the reflexive and transitive closure `—↠` of the step relation `—→`.
 We define reflexive and transitive closure as a sequence of zero or
 more steps of the underlying relation, along lines similar to that for
 reasoning about chains of equalities in
-Chapter [Equality]({{ site.baseurl }}/Equality/):
+Chapter [Equality](/Equality/):
 ```
 infix  2 _—↠_
 infix  1 begin_
@@ -788,28 +792,33 @@ while if the top two lines stand for a single reduction
 step and the bottom two stand for zero or more reduction
 steps it is called the diamond property. In symbols:
 
-    confluence : ∀ {L M N} → ∃[ P ]
-      ( ((L —↠ M) × (L —↠ N))
-        --------------------
-      → ((M —↠ P) × (N —↠ P)) )
+```
+postulate
+  confluence : ∀ {L M N}
+    → ((L —↠ M) × (L —↠ N))
+      --------------------
+    → ∃[ P ] ((M —↠ P) × (N —↠ P))
 
-    diamond : ∀ {L M N} → ∃[ P ]
-      ( ((L —→ M) × (L —→ N))
-        --------------------
-      → ((M —↠ P) × (N —↠ P)) )
+  diamond : ∀ {L M N}
+    → ((L —→ M) × (L —→ N))
+      --------------------
+    → ∃[ P ] ((M —↠ P) × (N —↠ P))
+```
 
 The reduction system studied in this chapter is deterministic.
 In symbols:
 
-    deterministic : ∀ {L M N}
-      → L —→ M
-      → L —→ N
-        ------
-      → M ≡ N
+```
+postulate
+  deterministic : ∀ {L M N}
+    → L —→ M
+    → L —→ N
+      ------
+    → M ≡ N
+```
 
 It is easy to show that every deterministic relation satisfies
-the diamond property, and that every relation that satisfies
-the diamond property is confluent.  Hence, all the reduction
+the diamond and confluence properties. Hence, all the reduction
 systems studied in this text are trivially confluent.
 
 
@@ -1081,6 +1090,26 @@ Constructor `S` takes an additional parameter, which ensures that
 when we look up a variable that it is not _shadowed_ by another
 variable with the same name to its left in the list.
 
+It can be rather tedious to use the `S` constructor, as you have to provide
+proofs that `x ≢ y` each time. For example:
+
+```
+_ : ∅ , "x" ⦂ `ℕ ⇒ `ℕ , "y" ⦂ `ℕ , "z" ⦂ `ℕ ∋ "x" ⦂ `ℕ ⇒ `ℕ
+_ = S (λ()) (S (λ()) Z)
+```
+
+Instead, we'll use a "smart constructor", which uses [proof by reflection](/Decidable/#proof-by-reflection) to check the inequality while type checking:
+
+```
+S′ : ∀ {Γ x y A B}
+   → {x≢y : False (x ≟ y)}
+   → Γ ∋ x ⦂ A
+     ------------------
+   → Γ , y ⦂ B ∋ x ⦂ A
+
+S′ {x≢y = x≢y} x = S (toWitnessFalse x≢y) x
+```
+
 ### Typing judgment
 
 The second judgment is written
@@ -1104,13 +1133,13 @@ infix  4  _⊢_⦂_
 
 data _⊢_⦂_ : Context → Term → Type → Set where
 
-  -- Axiom 
+  -- Axiom
   ⊢` : ∀ {Γ x A}
     → Γ ∋ x ⦂ A
       -----------
     → Γ ⊢ ` x ⦂ A
 
-  -- ⇒-I 
+  -- ⇒-I
   ⊢ƛ : ∀ {Γ x N A B}
     → Γ , x ⦂ A ⊢ N ⦂ B
       -------------------
@@ -1172,7 +1201,7 @@ the three places where a bound variable is introduced.
 The rules are deterministic, in that at most one rule applies to every term.
 
 
-### Example type derivations {#derivation}
+### Example type derivations {name=derivation}
 
 Type derivations correspond to trees. In informal notation, here
 is a type derivation for the Church numeral two,
@@ -1208,7 +1237,7 @@ Ch A = (A ⇒ A) ⇒ A ⇒ A
 ⊢twoᶜ : ∀ {Γ A} → Γ ⊢ twoᶜ ⦂ Ch A
 ⊢twoᶜ = ⊢ƛ (⊢ƛ (⊢` ∋s · (⊢` ∋s · ⊢` ∋z)))
   where
-  ∋s = S (λ()) Z
+  ∋s = S′ Z
   ∋z = Z
 ```
 
@@ -1221,11 +1250,11 @@ Here are the typings corresponding to computing two plus two:
 ⊢plus = ⊢μ (⊢ƛ (⊢ƛ (⊢case (⊢` ∋m) (⊢` ∋n)
          (⊢suc (⊢` ∋+ · ⊢` ∋m′ · ⊢` ∋n′)))))
   where
-  ∋+  = (S (λ()) (S (λ()) (S (λ()) Z)))
-  ∋m  = (S (λ()) Z)
+  ∋+  = S′ (S′ (S′ Z))
+  ∋m  = S′ Z
   ∋n  = Z
   ∋m′ = Z
-  ∋n′ = (S (λ()) Z)
+  ∋n′ = S′ Z
 
 ⊢2+2 : ∅ ⊢ plus · two · two ⦂ `ℕ
 ⊢2+2 = ⊢plus · ⊢two · ⊢two
@@ -1236,17 +1265,17 @@ to use them inside other binding contexts as well as at the top level.
 Here the two lookup judgments `∋m` and `∋m′` refer to two different
 bindings of variables named `"m"`.  In contrast, the two judgments `∋n` and
 `∋n′` both refer to the same binding of `"n"` but accessed in different
-contexts, the first where "n" is the last binding in the context, and
-the second after "m" is bound in the successor branch of the case.
+contexts, the first where `"n"` is the last binding in the context, and
+the second after `"m"` is bound in the successor branch of the case.
 
 And here are typings for the remainder of the Church example:
 ```
 ⊢plusᶜ : ∀ {Γ A} → Γ  ⊢ plusᶜ ⦂ Ch A ⇒ Ch A ⇒ Ch A
 ⊢plusᶜ = ⊢ƛ (⊢ƛ (⊢ƛ (⊢ƛ (⊢` ∋m · ⊢` ∋s · (⊢` ∋n · ⊢` ∋s · ⊢` ∋z)))))
   where
-  ∋m = S (λ()) (S (λ()) (S (λ()) Z))
-  ∋n = S (λ()) (S (λ()) Z)
-  ∋s = S (λ()) Z
+  ∋m = S′ (S′ (S′ Z))
+  ∋n = S′ (S′ Z)
+  ∋s = S′ Z
   ∋z = Z
 
 ⊢sucᶜ : ∀ {Γ} → Γ ⊢ sucᶜ ⦂ `ℕ ⇒ `ℕ
@@ -1298,7 +1327,7 @@ We can fill in `Z` by hand. If we type C-c C-space, Agda will confirm we are don
 
 The entire process can be automated using Agsy, invoked with C-c C-a.
 
-Chapter [Inference]({{ site.baseurl }}/Inference/)
+Chapter [Inference](/Inference/)
 will show how to use Agda to compute type derivations directly.
 
 

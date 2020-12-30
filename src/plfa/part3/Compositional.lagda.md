@@ -1,5 +1,5 @@
 ---
-title     : "Compositional: The denotational semantics is compositional 🚧"
+title     : "Compositional: The denotational semantics is compositional"
 layout    : page
 prev      : /Denotational/
 permalink : /Compositional/
@@ -65,7 +65,7 @@ rules `↦-intro`, `⊥-intro`, and `⊔-intro`.
 ```
 
 If one squints hard enough, the `ℱ` function starts to look like the
-`curry` operation familar to functional programmers. It turns a
+`curry` operation familiar to functional programmers. It turns a
 function that expects a tuple of length `n + 1` (the environment `Γ , ★`)
 into a function that expects a tuple of length `n` and returns a
 function of one parameter.
@@ -213,8 +213,7 @@ describe the proof below.
 ... | inj₂ ⟨ v₁′ , ⟨ L↓v12 , M↓v3 ⟩ ⟩ | inj₂ ⟨ v₁′′ , ⟨ L↓v12′ , M↓v3′ ⟩ ⟩ =
       let L↓⊔ = ⊔-intro L↓v12 L↓v12′ in
       let M↓⊔ = ⊔-intro M↓v3 M↓v3′ in
-      let x = inj₂ ⟨ v₁′ ⊔ v₁′′ , ⟨ sub L↓⊔ ⊔↦⊔-dist , M↓⊔ ⟩ ⟩ in
-      x
+      inj₂ ⟨ v₁′ ⊔ v₁′′ , ⟨ sub L↓⊔ ⊔↦⊔-dist , M↓⊔ ⟩ ⟩
 ℰ·→●ℰ {Γ}{γ}{L}{M}{v} (sub d lt)
     with ℰ·→●ℰ d
 ... | inj₁ lt2 = inj₁ (⊑-trans lt lt2)
@@ -424,7 +423,7 @@ mean by "context" and "surround".
 
 A _context_ is a program with one hole in it. The following data
 definition `Ctx` makes this idea explicit. We index the `Ctx` data
-type with two contexts for variables: one for the the hole and one for
+type with two contexts for variables: one for the hole and one for
 terms that result from filling the hole.
 
 ```
